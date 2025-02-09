@@ -16,28 +16,33 @@ const popupImage = document.querySelector('.popup_type_image');
 const cardContainer = container.querySelector('.places__list');
 const popupEdit = document.querySelector('.popup_type_edit');
 
-function addCard(titleCard, imageLink) { //функция добавления карточек
+function createCard(titleCard, imageLink) { //функция добавления карточек
   const cardTemplate = document.querySelector('#card-template').content;
   const cardElement = cardTemplate.querySelector('.card').cloneNode(true);
 
   cardElement.querySelector('.card__title').textContent = titleCard;
   cardElement.querySelector('.card__image').setAttribute('src', imageLink);
+  cardElement.querySelector('.card__image').setAttribute('alt', titleCard);
 
   cardElement.querySelector('.card__like-button').addEventListener('click', function (evt){
     evt.target.classList.toggle('card__like-button_is-active')
   })
 
-  cardElement.querySelector('.card__delete-button').addEventListener('click', function (evt){
-    evt.target.closest('.card').remove();
-  })
+  cardElement.querySelector('.card__delete-button').addEventListener('click', removeCard)
 
   cardElement.querySelector('.card__image').addEventListener('click', function () {
     popupImage.querySelector('.popup__caption').textContent = titleCard;
     popupImage.querySelector('.popup__image').setAttribute('src', imageLink);
     popupImage.classList.add('popup_is-opened');
   })
+  return cardElement;
+}
 
-  cardContainer.append(cardElement);
+function removeCard(event) {
+  const card = event.target.closest('.card');
+  if (card) {
+    card.remove();
+  }
 }
 
 popupImage.querySelector('.popup__close').addEventListener('click', function () {
@@ -45,7 +50,8 @@ popupImage.querySelector('.popup__close').addEventListener('click', function () 
 })
 
 for (let i = 0; i < initialCards.length; i++) {
-  addCard(initialCards[i].name, initialCards[i].link);
+  const newCard = createCard(initialCards[i].name, initialCards[i].link);
+  cardContainer.append(newCard);
 }
 
 addCardButton.addEventListener('click', function () {
@@ -60,8 +66,9 @@ popupCardAdd.querySelector('.popup__button').addEventListener('click', function 
   const titleCard = popupCardAdd.querySelector('.popup__input_type_card-name');
   const imageLink = popupCardAdd.querySelector('.popup__input_type_url');
 
-  addCard(titleCard.value, imageLink.value);
-
+  const newCard = createCard(titleCard.value, imageLink.value);
+  
+  cardContainer.append(newCard);
   titleCard.value = '';
   imageLink.value = '';
 
