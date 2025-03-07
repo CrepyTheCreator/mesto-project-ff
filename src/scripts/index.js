@@ -1,5 +1,6 @@
 import {createCard, cardAdd, initialCards} from './cards.js';
 import {editInfoProfile, openModal, closeModal} from './modal.js'
+import '../pages/index.css'
 
 export const container = document.querySelector('.content');
 const addCardButton = container.querySelector('.profile__add-button');
