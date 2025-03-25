@@ -1,6 +1,7 @@
-import {initialCards} from './cards.js';
-import {createCard, cardAdd} from './card.js'
+import {createCard} from './card.js'
 import {openModal, closeModal, handleOutsideClick} from './modal.js'
+import {enableValidation, clearValidation} from './validation.js'
+import { updateLikedCards, updateAvatar } from './api.js';
 import '../pages/index.css'
 
 const container = document.querySelector('.content');
@@ -14,25 +15,27 @@ const titleProfile = popupEditProfile.querySelector('.popup__input_type_name');
 const aboutProfile = popupEditProfile.querySelector('.popup__input_type_description');
 const titleCard = popupCardAdd.querySelector('.popup__input_type_card-name'); 
 const imageLink = popupCardAdd.querySelector('.popup__input_type_url');
+const profileName = container.querySelector('.profile__title');
+const profileDescrip = container.querySelector('.profile__description');
+const profileImage = document.querySelector('.profile__image');
+const cardDelete = document.querySelector('.popup_type_delete-card');
+const uploadAvatar = document.querySelector('.popup_type_upload-avatar');
 
 popupImage.querySelector('.popup__close').addEventListener('click', closeModal(popupImage))
-
-document.addEventListener("DOMContentLoaded", function() {
-  for (let i = 0; i < initialCards.length; i++) {
-    const newCard = createCard(initialCards[i].name, initialCards[i].link, popupImage, createPopupImage);
-    cardContainer.append(newCard);
-  }
-});
 
 popupCardAdd.querySelector('.popup__form').addEventListener('submit', submitAddCardForm);
 
 editProfileButton.addEventListener('click', () => {
-  titleProfile.value = container.querySelector('.profile__title').textContent;
-  aboutProfile.value = container.querySelector('.profile__description').textContent;
+  titleProfile.value = profileName.textContent;
+  aboutProfile.value = profileDescrip.textContent;
+  clearValidation(popupEditProfile)
   openModal(popupEditProfile)
 });
 
-addCardButton.addEventListener('click', () => openModal(popupCardAdd));
+addCardButton.addEventListener('click', () => {
+  clearValidation(popupCardAdd)
+  openModal(popupCardAdd)
+});
 popupCardAdd.querySelector('.popup__close').addEventListener('click', () => {closeModal(popupCardAdd)});
 popupCardAdd.addEventListener('click', (evt) => handleOutsideClick(evt, popupCardAdd));
 
@@ -42,33 +45,101 @@ popupEditProfile.addEventListener('click', (evt) => handleOutsideClick(evt, popu
 
 popupImage.querySelector('.popup__close').addEventListener('click', () => closeModal(popupImage));
 popupImage.addEventListener('click', (evt) => handleOutsideClick(evt, popupImage));
+cardDelete.querySelector('.popup__close').addEventListener('click', () => closeModal(cardDelete));
+cardDelete.addEventListener('click', (evt) => handleOutsideClick(evt, cardDelete));
+
+document.querySelector('.profile__image').addEventListener('click', () => openModal(uploadAvatar));
+uploadAvatar.querySelector('.popup__close').addEventListener('click', () => closeModal(uploadAvatar));
+uploadAvatar.addEventListener('click', (evt) => handleOutsideClick(evt, uploadAvatar));
+uploadAvatar.querySelector('.avatar-button').addEventListener('click', () => updateAvatar(uploadAvatar, profileImage))
+
 
 function editInfoProfile(evt) {
   evt.preventDefault();
-  
+
   const titleProfile = popupEditProfile.querySelector('.popup__input_type_name');
   const aboutProfile = popupEditProfile.querySelector('.popup__input_type_description');
 
   editProfile(titleProfile.value, aboutProfile.value);
-
-  closeModal(popupEditProfile);
 }
 
 function submitAddCardForm(evt) { 
   evt.preventDefault();
 
-  const newCard = createCard(titleCard.value, imageLink.value, popupImage, createPopupImage);
-  
-  cardContainer.prepend(newCard);
-  titleCard.value = '';
-  imageLink.value = '';
+  fetch('https://nomoreparties.co/v1/wff-cohort-35/cards', {
+    method: 'POST',
+    headers: {
+      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: titleCard.value,
+      link: imageLink.value
+    })
+  }) 
+  .then(res => {
+    if (res.ok) {
+      return res.json();
+    }
+    return Promise.reject(`Ошибка: ${res.status}`);
+  })
+  .then(result => {
+    const newCard = createCard(
+      result.name,
+      result.link,
+      popupImage,
+      createPopupImage,
+      openModal,
+      cardDelete,
+      result
+    );
 
-  closeModal(popupCardAdd);
+    cardContainer.prepend(newCard);
+
+    titleCard.value = '';
+    imageLink.value = '';
+
+    closeModal(popupCardAdd);
+  })
+  .catch(err => {
+    console.error(err);
+  });
 }
 
+
 function editProfile(titleProfile, aboutProfile) {
-  document.querySelector('.profile__title').textContent = titleProfile;
-  document.querySelector('.profile__description').textContent = aboutProfile;
+  const saveButton = popupEditProfile.querySelector('.popup__button');
+  saveButton.textContent = 'Сохранение...';
+
+  fetch('https://nomoreparties.co/v1/wff-cohort-35/users/me', {
+    method: 'PATCH',
+    headers: {
+      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: titleProfile,
+      about: aboutProfile
+    }),
+  })
+  .then(res => {
+    if (!res.ok) {
+      return Promise.reject(`Ошибка: ${res.status}`);
+    }
+    return res.json();
+  })
+  .then(data => {
+    document.querySelector('.profile__title').textContent = data.name;
+    document.querySelector('.profile__description').textContent = data.about;
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Произошла ошибка при сохранении данных. Попробуйте снова.');
+  })
+  .finally(() => {
+    closeModal(popupEditProfile);
+    saveButton.textContent = 'Сохранить';
+  });
 }
 
 function createPopupImage(popupImage, titleCard, imageLink) {
@@ -77,3 +148,44 @@ function createPopupImage(popupImage, titleCard, imageLink) {
   popupImage.querySelector('.popup__image').setAttribute('alt', titleCard);
   openModal(popupImage);
 }
+
+enableValidation();
+
+//wff-cohort-35
+//b0c32310-1d90-44c0-955e-865e66a9548d
+function getInfo() {
+  fetch('https://nomoreparties.co/v1/wff-cohort-35/users/me', {
+    method: 'GET',
+    headers: {
+      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d'
+    }
+  })
+    .then(res => res.json())
+    .then((result) => {
+      profileName.textContent = result.name;
+      profileDescrip.textContent = result.about;
+      profileImage.style.backgroundImage = `url('${result.avatar}')`;
+    }); 
+}
+
+function getCards() {
+  fetch('https://nomoreparties.co/v1/wff-cohort-35/cards', {
+    method: 'GET',
+    headers: {
+      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d'
+    }
+  })
+    .then(res => res.json())
+    .then((result) => {
+      for (let i = 0; i < result.length; i++) {
+        const newCard = createCard(result[i].name, result[i].link, popupImage, createPopupImage, openModal, cardDelete, result[i]);
+        cardContainer.append(newCard);
+      }
+    }); 
+}
+
+addEventListener('DOMContentLoaded', () => {
+  getInfo()
+  getCards()  
+  updateLikedCards()
+})
