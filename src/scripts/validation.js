@@ -1,73 +1,70 @@
-const showInputError = (formElement, inputElement, errorMessage) => {
-  const errorElement = formElement.querySelector(`.${inputElement.id}-error`);
-  inputElement.classList.add('form__input_type_error');
-  errorElement.textContent = errorMessage;
-  errorElement.classList.add('form__input-error_active');
+export const validationConfig = {
+  formSelector: '.popup__form',
+  inputSelector: '.popup__input',
+  submitButtonSelector: '.popup__button',
+  inputErrorClass: 'form__input_type_error',
+  errorClass: 'form__input-error_active'
 };
 
-const hideInputError = (formElement, inputElement) => {
-  const errorElement = formElement.querySelector(`.${inputElement.id}-error`);
-  inputElement.classList.remove('form__input_type_error');
-  errorElement.classList.remove('form__input-error_active');
-  errorElement.textContent = '';
+const showInputError = (formElement, inputElement, errorMessage, config) => {
+  inputElement.classList.add(config.inputErrorClass);
+  inputElement.setAttribute('data-error', errorMessage);
 };
 
-const checkInputValidity = (formElement, inputElement) => {
-  const nameRegex = /^[a-zA-Zа-яА-ЯёЁ -]+$/;
+const hideInputError = (formElement, inputElement, config) => {
+  inputElement.classList.remove(config.inputErrorClass);
+  inputElement.removeAttribute('data-error');
+};
 
-  if (!inputElement.validity.valid) {
-    showInputError(formElement, inputElement, inputElement.validationMessage);
-  } else if (inputElement.id !== "link" && inputElement.id !== "avatar-link" && !nameRegex.test(inputElement.value)) {
-    showInputError(formElement, inputElement, "Разрешены только латинские, кириллические буквы, знаки дефиса и пробелы");
+const checkInputValidity = (formElement, inputElement, config) => {
+  if (inputElement.validity.patternMismatch) {
+    showInputError(formElement, inputElement, "Разрешены только буквы, дефисы и пробелы", config);
+  } else if (!inputElement.validity.valid) {
+    showInputError(formElement, inputElement, inputElement.validationMessage, config);
   } else {
-    hideInputError(formElement, inputElement);
+    hideInputError(formElement, inputElement, config);
   }
-}
-const setEventListeners = (formElement) => {
-  const inputList = Array.from(formElement.querySelectorAll('.popup__input'));
-  const buttonElement = formElement.querySelector('.popup__button');
+};
+
+const setEventListeners = (formElement, config) => {
+  const inputList = Array.from(formElement.querySelectorAll(config.inputSelector));
+  const buttonElement = formElement.querySelector(config.submitButtonSelector);
 
   toggleButtonState(inputList, buttonElement);
   inputList.forEach((inputElement) => {
     inputElement.addEventListener('input', function () {
-      checkInputValidity(formElement, inputElement);
+      checkInputValidity(formElement, inputElement, config);
       toggleButtonState(inputList, buttonElement);
     });
   });
 };
 
-export const enableValidation = () => {
-  const formList = Array.from(document.querySelectorAll('.popup__form'));
+export const enableValidation = (config) => {
+  const formList = Array.from(document.querySelectorAll(config.formSelector));
   formList.forEach((formElement) => {
     formElement.addEventListener('submit', function (evt) {
       evt.preventDefault();
     });
-    setEventListeners(formElement)
+    setEventListeners(formElement, config);
   });
 };
 
 const hasInvalidInput = (inputList) => {
-  return inputList.some((inputElement) => {
-    return !inputElement.validity.valid
-  })
-}
+  return inputList.some((inputElement) => !inputElement.validity.valid);
+};
 
 const toggleButtonState = (inputList, buttonElement) => {
-  if (hasInvalidInput(inputList)) {
-        buttonElement.disabled = true;
-  } else {
-        buttonElement.disabled = false;
-  }
-}; 
+  buttonElement.disabled = hasInvalidInput(inputList);
+};
 
-export function clearValidation(popup) {
-  const formElement = popup.querySelector('.popup__form');
+export function clearValidation(popup, config) {
+  const formElement = popup.querySelector(config.formSelector);
   if (formElement) {
-    const inputList = Array.from(formElement.querySelectorAll('.popup__input'));
-    const buttonElement = formElement.querySelector('.popup__button');
+    const inputList = Array.from(formElement.querySelectorAll(config.inputSelector));
+    const buttonElement = formElement.querySelector(config.submitButtonSelector);
 
     inputList.forEach((inputElement) => {
-      hideInputError(formElement, inputElement);
+      hideInputError(formElement, inputElement, config);
     });
 
     toggleButtonState(inputList, buttonElement);

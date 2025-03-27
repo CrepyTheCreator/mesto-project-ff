@@ -1,32 +1,35 @@
-import {closeModal} from './modal.js';
+const baseAddres = 'https://nomoreparties.co/v1/wff-cohort-35';
+const authoKey = 'b0c32310-1d90-44c0-955e-865e66a9548d';
+
 
 export function updateLikedCards() {
-  fetch('https://nomoreparties.co/v1/wff-cohort-35/cards', {
-    headers: {
-      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d'
-    }
-  })
-    .then(res => {
-      if (res.ok) return res.json();
-      return Promise.reject(`Ошибка: ${res.status}`);
+  Promise.all([
+    CurrentUser(),
+    fetch(`${baseAddres}/cards`, { headers: { authorization: authoKey } })
+  ])
+    .then(([userRes, cardsRes]) => {
+      if (!userRes.ok || !cardsRes.ok) {
+        return Promise.reject(`Ошибка: ${userRes.status}, ${cardsRes.status}`);
+      }
+      return Promise.all([userRes.json(), cardsRes.json()]);
     })
-    .then(cards => {
+    .then(([userData, cards]) => {
       console.log(cards);
+
       cards.forEach(card => {
-        const isLikedByUser = card.likes.some(like => like._id === '012852f1f8cef796afa57ed1');
-        
-        if (isLikedByUser) {
-          const likeButton = document.querySelector(`[data-card-id="${card._id}"]`);
-          if (likeButton) {
-            likeButton.classList.add('card__like-button_is-active');
-            const likeScore = likeButton.closest('.card').querySelector('.card-like-score');
-            likeScore.textContent = card.likes.length;
-          }
+        const isLikedByUser = card.likes.some(like => like._id === userData._id);
+
+        const likeButton = document.querySelector(`[data-card-id="${card._id}"]`);
+        if (likeButton) {
+          likeButton.classList.toggle('card__like-button_is-active', isLikedByUser);
+
+          const likeScore = likeButton.closest('.card').querySelector('.card-like-score');
+          likeScore.textContent = card.likes.length;
         }
       });
     })
     .catch(err => {
-      console.error(err);
+      console.error("Ошибка при загрузке данных:", err);
     });
 }
 
@@ -40,10 +43,10 @@ export function toggleLike(evt) {
   const method = isLiked ? 'DELETE' : 'PUT';
   likeButton.classList.toggle('card__like-button_is-active');
 
-  fetch(`https://nomoreparties.co/v1/wff-cohort-35/cards/likes/${cardId}`, {
+  fetch(`${baseAddres}/cards/likes/${cardId}`, {
     method: method,
     headers: {
-      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d'
+      authorization: authoKey
     }
   })
     .then(res => {
@@ -55,38 +58,27 @@ export function toggleLike(evt) {
       likeScore.textContent = data.likes.length;
     })
     .catch(err => {
-      console.error(err);
+      console.error("Ошибка при загрузке данных:", err);
     });
 }
 
 export function deleteCard(currentCardId, currentCardElement, cardDelete) {
   if (currentCardId && currentCardElement) {
-    fetch(`https://nomoreparties.co/v1/wff-cohort-35/cards/${currentCardId}`, {
+    return fetch(`${baseAddres}/cards/${currentCardId}`, {
       method: 'DELETE',
       headers: {
-        authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d'
+        authorization: authoKey
       }
     })
-    .then(res => {
-      if (res.ok) {
-        currentCardElement.remove();
-        currentCardId = null;
-        currentCardElement = null;
-      } else {
-        console.log('Ошибка при удалении карточки:', res.status);
-      }
-    })
-    .catch(err => console.error(err));
-  }
-  closeModal(cardDelete);
+}
 }
 
 export function updateAvatar(uploadAvatar, profileImage) {
   const uploadInput = uploadAvatar.querySelector('.popup__input_type_upload-avatar').value;
-  fetch('https://nomoreparties.co/v1/wff-cohort-35/users/me/avatar', {
+  fetch(`${baseAddres}/users/me/avatar`, {
     method: 'PATCH',
     headers: {
-      authorization: 'b0c32310-1d90-44c0-955e-865e66a9548d',
+      authorization: authoKey,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -94,5 +86,54 @@ export function updateAvatar(uploadAvatar, profileImage) {
     })
   })
   profileImage.style.backgroundImage = `url('${uploadInput}')`;
-  closeModal(uploadAvatar);
+}
+
+export const addCardFetch = (titleCard, imageLink) => {
+  return fetch(`${baseAddres}/cards`, {
+    method: 'POST',
+    headers: {
+      authorization: authoKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: titleCard.value,
+      link: imageLink.value
+    })
+  })
+}
+
+export const profileFetch = (titleProfile, aboutProfile) => {
+  return fetch(`${baseAddres}/users/me`, {
+    method: 'PATCH',
+    headers: {
+      authorization: authoKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      name: titleProfile,
+      about: aboutProfile
+    }),
+  })
+}
+
+export const profileInfoFetch = () => {
+  return fetch(`${baseAddres}/users/me`, {
+    method: 'GET',
+    headers: {
+      authorization: authoKey
+    }
+  })
+}
+
+export const CardsGetFetch = () => {
+  return fetch(`${baseAddres}/cards`, {
+    method: 'GET',
+    headers: {
+      authorization: authoKey
+    }
+  })
+}
+
+export const CurrentUser = () => {
+  return fetch(`${baseAddres}/users/me`, { headers: { authorization: authoKey } })
 }
