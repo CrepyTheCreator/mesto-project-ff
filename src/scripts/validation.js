@@ -1,24 +1,21 @@
-export const validationConfig = {
-  formSelector: '.popup__form',
-  inputSelector: '.popup__input',
-  submitButtonSelector: '.popup__button',
-  inputErrorClass: 'form__input_type_error',
-  errorClass: 'form__input-error_active'
-};
-
 const showInputError = (formElement, inputElement, errorMessage, config) => {
+  const errorElement = formElement.querySelector(`.${inputElement.name}-error`);
   inputElement.classList.add(config.inputErrorClass);
-  inputElement.setAttribute('data-error', errorMessage);
+  errorElement.textContent = errorMessage;
+  errorElement.classList.add(config.errorClass);
 };
 
 const hideInputError = (formElement, inputElement, config) => {
+  const errorElement = formElement.querySelector(`.${inputElement.name}-error`);
   inputElement.classList.remove(config.inputErrorClass);
-  inputElement.removeAttribute('data-error');
+  errorElement.textContent = "";
+  errorElement.classList.remove(config.errorClass);
 };
+
 
 const checkInputValidity = (formElement, inputElement, config) => {
   if (inputElement.validity.patternMismatch) {
-    showInputError(formElement, inputElement, "Разрешены только буквы, дефисы и пробелы", config);
+    showInputError(formElement, inputElement, inputElement.dataset.errorPattern, config);
   } else if (!inputElement.validity.valid) {
     showInputError(formElement, inputElement, inputElement.validationMessage, config);
   } else {
@@ -54,7 +51,13 @@ const hasInvalidInput = (inputList) => {
 };
 
 const toggleButtonState = (inputList, buttonElement) => {
-  buttonElement.disabled = hasInvalidInput(inputList);
+  if (hasInvalidInput(inputList)) {
+    buttonElement.disabled = true;
+    buttonElement.classList.add('button_disabled');
+  } else {
+    buttonElement.disabled = false;
+    buttonElement.classList.remove('button_disabled');
+  }
 };
 
 export function clearValidation(popup, config) {

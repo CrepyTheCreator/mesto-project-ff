@@ -1,44 +1,56 @@
-import { toggleLike, deleteCard, CurrentUser } from "./api.js";
-import { closeModal } from "./modal.js";
+import { toggleLike } from "./api.js";
 
-export function createCard(titleCard, imageLink, popupImage, createPopupImage, deleteCardDOM, result) {
+export function createCard(titleCard, imageLink, popupImage, createPopupImage, deleteCardDOM, result, currentUserId) {
   const cardTemplate = document.querySelector('#card-template').content;
   const cardElement = cardTemplate.querySelector('.card').cloneNode(true);
   const deleteButton = cardElement.querySelector('.card__delete-button');
+  const likeButton = cardElement.querySelector('.card__like-button');
+  const likeScore = cardElement.querySelector('.card-like-score');
 
   cardElement.querySelector('.card__title').textContent = titleCard;
   cardElement.querySelector('.card__image').setAttribute('src', imageLink);
   cardElement.querySelector('.card__image').setAttribute('alt', titleCard);
+
   if (result) {
-    cardElement.querySelector('.card-like-score').textContent = result.likes.length;
-    
+    likeScore.textContent = result.likes.length;
+    likeButton.dataset.cardId = result._id;
   }
-  
-  CurrentUser()
-  .then((userRes) => {
-    if (!userRes.ok) {
-      return Promise.reject(`Ошибка: ${userRes.status}`);
-    }
-    return userRes.json();
-  })
-  .then((userData) => {
-    const currentUserId = userData._id;
 
-    if (result && result.owner._id !== currentUserId) {
-      deleteButton.style.display = 'none';
-    } else if (result && result._id) {
-      deleteButton.dataset.cardId = result._id;
-    }
-  })
-  .catch((err) => {
-    console.error("Ошибка при получении данных пользователя:", err);
-  });
+  if (result) {
+    const isLikedByUser = result.likes.some(like => like._id === currentUserId);
+    likeButton.classList.toggle('card__like-button_is-active', isLikedByUser);
+  }
 
+  if (result.owner._id !== currentUserId) {
+    deleteButton.style.display = 'none';
+  } else {
+    deleteButton.dataset.cardId = result._id;
+  }
 
-  cardElement.querySelector('.card__like-button').addEventListener('click', toggleLike)
-
-  deleteButton.addEventListener('click', () => {deleteCardDOM(cardElement, result, deleteCard)});
-
+  likeButton.addEventListener('click', cardLike);
+  deleteButton.addEventListener('click', () => deleteCardDOM(cardElement, result));
   cardElement.querySelector('.card__image').addEventListener('click', () => createPopupImage(popupImage, titleCard, imageLink));
+
   return cardElement;
+}
+
+
+export function cardLike(evt) {
+  const likeButton = evt.target;
+  const cardId = likeButton.getAttribute('data-card-id');
+
+  if (!cardId) return;
+
+  const isLiked = likeButton.classList.contains('card__like-button_is-active');
+  const method = isLiked ? 'DELETE' : 'PUT';
+  likeButton.classList.toggle('card__like-button_is-active');
+
+  toggleLike(cardId, method)
+    .then(data => {
+      const likeScore = likeButton.closest('.card').querySelector('.card-like-score');
+      likeScore.textContent = data.likes.length;
+    })
+    .catch(err => {
+      console.error("Ошибка при загрузке данных:", err);
+    });
 }

@@ -1,7 +1,7 @@
 import {createCard} from './card.js'
 import {openModal, closeModal, handleOutsideClick} from './modal.js'
-import {enableValidation, clearValidation, validationConfig} from './validation.js'
-import {updateLikedCards, updateAvatar, addCardFetch, profileFetch, profileInfoFetch, CardsGetFetch} from './api.js';
+import {enableValidation, clearValidation} from './validation.js'
+import {updateAvatar, addCardFetch, profileFetch, profileInfoFetch, cardsGetFetch, deleteCard} from './api.js';
 import '../pages/index.css'
 
 const container = document.querySelector('.content');
@@ -20,6 +20,21 @@ const profileDescrip = container.querySelector('.profile__description');
 const profileImage = document.querySelector('.profile__image');
 const cardDelete = document.querySelector('.popup_type_delete-card');
 const uploadAvatar = document.querySelector('.popup_type_upload-avatar');
+const uploadInput = uploadAvatar.querySelector('.popup__input_type_upload-avatar').value;
+const deleteForm = document.querySelector("#delete-card-form");
+
+let currentUser = null;
+let currentCardId = null;
+let currentCardElement = null;
+
+const validationConfig = {
+  formSelector: '.popup__form',
+  inputSelector: '.popup__input',
+  submitButtonSelector: '.popup__button',
+  inputErrorClass: 'form__input_type_error',
+  errorClass: 'form__input-error_active'
+};
+
 
 popupImage.querySelector('.popup__close').addEventListener('click', closeModal(popupImage))
 
@@ -52,9 +67,13 @@ document.querySelector('.profile__image').addEventListener('click', () => openMo
 uploadAvatar.querySelector('.popup__close').addEventListener('click', () => closeModal(uploadAvatar));
 uploadAvatar.addEventListener('click', (evt) => handleOutsideClick(evt, uploadAvatar));
 uploadAvatar.addEventListener('submit', () => {
-  updateAvatar(uploadAvatar, profileImage)
+  updateAvatar(uploadAvatar, profileImage, uploadInput)
+  .then(() => {
+    profileImage.style.backgroundImage = `url('${uploadInput}')`;
+  });
   closeModal(uploadAvatar);
 })
+deleteForm.addEventListener("submit", handleDelete);
 
 
 function editInfoProfile(evt) {
@@ -71,12 +90,6 @@ function submitAddCardForm(evt) {
   const saveButton = popupCardAdd.querySelector('.popup__button');
   saveButton.textContent = 'Сохранение...';
   addCardFetch(titleCard, imageLink)
-  .then(res => {
-    if (res.ok) {
-      return res.json();
-    }
-    return Promise.reject(`Ошибка: ${res.status}`);
-  })
   .then(result => {
     const newCard = createCard(
       result.name,
@@ -84,66 +97,67 @@ function submitAddCardForm(evt) {
       popupImage,
       createPopupImage,
       deleteCardDOM,
-      result
+      result,
+      currentUser
     );
 
     cardContainer.prepend(newCard);
 
     titleCard.value = '';
     imageLink.value = '';
-  })
-  .finally(() => {
     closeModal(popupCardAdd);
-    saveButton.textContent = 'Сохранить';
   })
   .catch(err => {
     console.error(err);
+  })
+  .finally(() => {
+    saveButton.textContent = 'Сохранить';
   });
-  
 }
 
-function deleteCardDOM(cardElement, result, deleteCard) {
-  const currentCardId = result._id;
-    const currentCardElement = cardElement;
-    openModal(cardDelete);          
-    document.querySelector("#delete-card-form").addEventListener('submit', () => {
-      deleteCard(currentCardId, currentCardElement, cardDelete)
-      .then(res => {
-        if (res.ok) {
-          currentCardElement.remove();
-        } else {
-          console.log('Ошибка при удалении карточки:', res.status);
-        }
-      })
-      .catch(err => {
-        console.error("Ошибка при загрузке данных:", err);
-      });
+function deleteCardDOM(cardElement, result) {
+  currentCardId = result._id;
+  currentCardElement = cardElement;
+
+  openModal(cardDelete);
+}
+
+
+function handleDelete(evt) {
+  evt.preventDefault();
+
+  if (!currentCardId || !currentCardElement) {
+    console.error("Ошибка: отсутствует карточка для удаления.");
+    return;
+  }
+
+  deleteCard(currentCardId, currentCardElement)
+    .then(() => {
+      currentCardElement.remove();
       closeModal(cardDelete);
+      currentCardId = null;
+      currentCardElement = null;
+    })
+    .catch(err => {
+      console.error("Ошибка при удалении карточки:", err);
     });
 }
-
 
 function editProfile(titleProfile, aboutProfile) {
   const saveButton = popupEditProfile.querySelector('.popup__button');
   saveButton.textContent = 'Сохранение...';
 
   profileFetch(titleProfile, aboutProfile)
-  .then(res => {
-    if (!res.ok) {
-      return Promise.reject(`Ошибка: ${res.status}`);
-    }
-    return res.json();
-  })
   .then(data => {
     profileName.textContent = data.name;
     profileDescrip.textContent = data.about;
+    closeModal(popupEditProfile);
   })
   .catch(err => {
     console.error(err);
     alert('Произошла ошибка при сохранении данных. Попробуйте снова.');
   })
   .finally(() => {
-    closeModal(popupEditProfile);
     saveButton.textContent = 'Сохранить';
   });
 }
@@ -156,15 +170,15 @@ function createPopupImage(popupImage, titleCard, imageLink) {
 }
 
 enableValidation(validationConfig);
-//wff-cohort-35
-//b0c32310-1d90-44c0-955e-865e66a9548d
+
 addEventListener('DOMContentLoaded', () => {
-  Promise.all([profileInfoFetch(), CardsGetFetch()])
-    .then(([profileRes, cardsRes]) => Promise.all([profileRes.json(), cardsRes.json()]))
+  Promise.all([profileInfoFetch(), cardsGetFetch()])
     .then(([profileData, cardsData]) => {
+      currentUser = profileData._id;
       profileName.textContent = profileData.name;
       profileDescrip.textContent = profileData.about;
       profileImage.style.backgroundImage = `url('${profileData.avatar}')`;
+      
       cardsData.forEach(card => {
         const newCard = createCard(
           card.name, 
@@ -172,11 +186,11 @@ addEventListener('DOMContentLoaded', () => {
           popupImage, 
           createPopupImage, 
           deleteCardDOM,
-          card
+          card,
+          profileData._id
         );
         cardContainer.append(newCard);
       });
-      updateLikedCards();
     })
     .catch(err => {
       console.error("Ошибка при загрузке данных:", err);
