@@ -1,6 +1,6 @@
 import { toggleLike } from "./api.js";
 
-export function createCard(titleCard, imageLink, popupImage, createPopupImage, deleteCardDOM, result, currentUserId) {
+export function createCard(titleCard, imageLink, popupImage, createPopupImage, deleteCardDOM, result, currentUserId, cardLike) {
   const cardTemplate = document.querySelector('#card-template').content;
   const cardElement = cardTemplate.querySelector('.card').cloneNode(true);
   const deleteButton = cardElement.querySelector('.card__delete-button');
@@ -27,7 +27,7 @@ export function createCard(titleCard, imageLink, popupImage, createPopupImage, d
     deleteButton.dataset.cardId = result._id;
   }
 
-  likeButton.addEventListener('click', cardLike);
+  likeButton.addEventListener('click', () => cardLike(likeButton, likeScore));
   deleteButton.addEventListener('click', () => deleteCardDOM(cardElement, result));
   cardElement.querySelector('.card__image').addEventListener('click', () => createPopupImage(popupImage, titleCard, imageLink));
 
@@ -35,20 +35,19 @@ export function createCard(titleCard, imageLink, popupImage, createPopupImage, d
 }
 
 
-export function cardLike(evt) {
-  const likeButton = evt.target;
+export function cardLike(likeBtn, likeScore) {
+  const likeButton = likeBtn;
   const cardId = likeButton.getAttribute('data-card-id');
 
   if (!cardId) return;
 
   const isLiked = likeButton.classList.contains('card__like-button_is-active');
   const method = isLiked ? 'DELETE' : 'PUT';
-  likeButton.classList.toggle('card__like-button_is-active');
 
   toggleLike(cardId, method)
     .then(data => {
-      const likeScore = likeButton.closest('.card').querySelector('.card-like-score');
       likeScore.textContent = data.likes.length;
+      likeButton.classList.toggle('card__like-button_is-active');
     })
     .catch(err => {
       console.error("Ошибка при загрузке данных:", err);

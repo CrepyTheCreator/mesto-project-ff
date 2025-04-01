@@ -1,4 +1,4 @@
-import {createCard} from './card.js'
+import {createCard, cardLike} from './card.js'
 import {openModal, closeModal, handleOutsideClick} from './modal.js'
 import {enableValidation, clearValidation} from './validation.js'
 import {updateAvatar, addCardFetch, profileFetch, profileInfoFetch, cardsGetFetch, deleteCard} from './api.js';
@@ -20,7 +20,7 @@ const profileDescrip = container.querySelector('.profile__description');
 const profileImage = document.querySelector('.profile__image');
 const cardDelete = document.querySelector('.popup_type_delete-card');
 const uploadAvatar = document.querySelector('.popup_type_upload-avatar');
-const uploadInput = uploadAvatar.querySelector('.popup__input_type_upload-avatar').value;
+const uploadInput = uploadAvatar.querySelector('.popup__input_type_upload-avatar');
 const deleteForm = document.querySelector("#delete-card-form");
 
 let currentUser = null;
@@ -32,7 +32,8 @@ const validationConfig = {
   inputSelector: '.popup__input',
   submitButtonSelector: '.popup__button',
   inputErrorClass: 'form__input_type_error',
-  errorClass: 'form__input-error_active'
+  errorClass: 'form__input-error_active',
+  btnDisable: 'button_disabled'
 };
 
 
@@ -69,9 +70,12 @@ uploadAvatar.addEventListener('click', (evt) => handleOutsideClick(evt, uploadAv
 uploadAvatar.addEventListener('submit', () => {
   updateAvatar(uploadAvatar, profileImage, uploadInput)
   .then(() => {
-    profileImage.style.backgroundImage = `url('${uploadInput}')`;
+    profileImage.style.backgroundImage = `url('${uploadInput.value}')`;
+    closeModal(uploadAvatar);
+  })
+  .catch(err => {
+    console.error(err);
   });
-  closeModal(uploadAvatar);
 })
 deleteForm.addEventListener("submit", handleDelete);
 
@@ -98,7 +102,8 @@ function submitAddCardForm(evt) {
       createPopupImage,
       deleteCardDOM,
       result,
-      currentUser
+      currentUser,
+      cardLike
     );
 
     cardContainer.prepend(newCard);
@@ -187,7 +192,8 @@ addEventListener('DOMContentLoaded', () => {
           createPopupImage, 
           deleteCardDOM,
           card,
-          profileData._id
+          profileData._id,
+          cardLike
         );
         cardContainer.append(newCard);
       });

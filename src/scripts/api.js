@@ -35,7 +35,7 @@ export function updateAvatar(uploadAvatar, profileImage, uploadInput) {
       authorization: authoKey,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ avatar: uploadInput })
+    body: JSON.stringify({ avatar: uploadInput.value })
   })
   .then(servCheck)
 }
